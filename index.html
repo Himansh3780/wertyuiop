@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper | Firebase Auth + Appwrite DB</title>
+    <title>Whisper | Campus Confessions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
     
@@ -59,7 +59,7 @@
 
     <script>
         // ---------------------------------------------------------
-        // 1. FIREBASE SETUP (YOUR KEYS ARE INTEGRATED HERE)
+        // 1. FIREBASE SETUP
         // ---------------------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyCxNj3xODMPUWKOFFw5kORuWqc6bXTYr00",
@@ -72,20 +72,18 @@
             measurementId: "G-ZWF6K9GNTZ"
         };
         
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
         // ---------------------------------------------------------
-        // 2. APPWRITE CONFIG (YOU MUST FILL PROJECT ID)
+        // 2. APPWRITE CONFIG (YOUR ID IS INSERTED)
         // ---------------------------------------------------------
         const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
         
-        // 👇👇👇 PASTE YOUR APPWRITE PROJECT ID HERE 👇👇👇
-        const APPWRITE_PROJECT = 'PASTE_APPWRITE_PROJECT_ID_HERE'; 
+        // YOUR ID 👇
+        const APPWRITE_PROJECT = '8076463527'; 
         
-        // Using standard names. If you changed them, update below:
         const DB_ID = 'confessions_db';
         const COL_ID = 'posts';
         const BUCKET_ID = 'images';
@@ -97,7 +95,7 @@
 
         let currentUser = null;
 
-        // --- AUTH LOGIC (Managed by Firebase) ---
+        // --- AUTH LOGIC (Firebase) ---
         auth.onAuthStateChanged((user) => {
             if (user) {
                 currentUser = user;
@@ -116,7 +114,6 @@
         function googleLogin() {
             auth.signInWithPopup(provider).catch((error) => {
                 alert("Login Failed: " + error.message);
-                console.error(error);
             });
         }
 
@@ -125,10 +122,9 @@
             window.location.reload();
         }
 
-        // --- DATA LOGIC (Managed by Appwrite) ---
+        // --- DATA LOGIC (Appwrite) ---
         async function loadFeed() {
             try {
-                // Fetch posts from Appwrite
                 const response = await database.listDocuments(DB_ID, COL_ID, [
                     Query.orderDesc('$createdAt'),
                     Query.limit(20)
@@ -155,7 +151,7 @@
                 document.getElementById('feed-container').innerHTML = `
                     <div class="text-red-400 text-center p-4 border border-red-900 rounded-lg">
                         <p class="font-bold">Failed to load posts.</p>
-                        <p class="text-xs mt-2">1. Check Appwrite Project ID.<br>2. Check Database/Storage Permissions are 'Any'.</p>
+                        <p class="text-xs mt-2">1. Check if Appwrite DB Permissions are set to 'Any'.<br>2. Check if 'confessions_db' exists.</p>
                     </div>`;
             }
         }
@@ -172,13 +168,11 @@
 
             try {
                 let imageId = null;
-                // 1. Upload to Appwrite Storage
                 if (file) {
                     const upload = await storage.createFile(BUCKET_ID, ID.unique(), file);
                     imageId = upload.$id;
                 }
 
-                // 2. Save to Appwrite Database
                 await database.createDocument(DB_ID, COL_ID, ID.unique(), {
                     content: content,
                     image_id: imageId,
