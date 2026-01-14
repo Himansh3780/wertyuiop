@@ -3,233 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper | Campus Confessions</title>
+    <title>Whisper | Firebase Auth + Appwrite DB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
 
     <style>
         body { font-family: 'Space Grotesk', sans-serif; background-color: #09090b; color: #e4e4e7; }
         .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .input-field { background: #18181b; border: 1px solid #3f3f46; color: white; padding: 12px 15px; border-radius: 10px; width: 100%; outline: none; transition: 0.2s; }
-        .input-field:focus { border-color: #818cf8; background: #27272a; }
+        .input-field { background: #18181b; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 10px; width: 100%; outline: none; }
+        .input-field:focus { border-color: #818cf8; }
         .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-weight: bold; padding: 12px; border-radius: 10px; width: 100%; transition: 0.3s; }
-        .btn-primary:hover { opacity: 0.9; transform: scale(0.98); }
-        .tab-active { color: white; border-bottom: 2px solid #818cf8; }
-        .tab-inactive { color: #71717a; border-bottom: 2px solid transparent; }
-        .tab-inactive:hover { color: #a1a1aa; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-google { background: white; color: black; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border-radius: 50px; font-size: 14px; transition: 0.3s; cursor: pointer; }
+        .btn-google:hover { background: #f4f4f5; }
     </style>
 </head>
 <body class="min-h-screen pb-20 flex flex-col items-center">
 
-    <nav class="glass fixed w-full z-50 top-0 px-6 py-4 flex justify-between items-center shadow-2xl shadow-black/50">
+    <nav class="glass fixed w-full z-50 top-0 px-6 py-4 flex justify-between items-center shadow-2xl">
         <h1 class="text-2xl font-bold tracking-tighter text-indigo-400">WHISPER.</h1>
         <div id="auth-section">
-            <button onclick="openAuthModal()" id="login-trigger" class="text-sm font-bold bg-white text-black px-5 py-2 rounded-full hover:bg-gray-200 transition">
-                Log In
+            <button onclick="googleLogin()" id="login-btn" class="btn-google">
+                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" width="18">
+                Sign in
             </button>
             <div id="user-info" class="hidden flex items-center gap-4">
-                <span id="display-username" class="text-sm text-gray-400 font-mono border-r border-gray-700 pr-4"></span>
+                <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-indigo-500">
                 <button onclick="logout()" class="text-xs text-red-400 hover:text-red-300">Logout</button>
             </div>
         </div>
     </nav>
 
     <main class="w-full max-w-lg mt-28 px-4 space-y-6" id="feed-container">
-        <div class="text-center py-10 text-gray-600 animate-pulse tracking-widest text-xs">LOADING SECRETS...</div>
+        <div class="text-center py-10 text-gray-600 animate-pulse text-xs tracking-widest">LOADING SECRETS...</div>
     </main>
 
-    <button onclick="openPostModal()" class="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-full shadow-2xl transition hover:scale-105 z-40">
+    <button id="fab" onclick="toggleModal()" class="hidden fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-full shadow-2xl transition hover:scale-105 z-40">
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
     </button>
 
-    <div id="auth-modal" class="fixed inset-0 bg-black/95 hidden z-[70] flex items-center justify-center p-4 backdrop-blur-md">
-        <div class="glass w-full max-w-sm p-8 rounded-2xl relative border border-zinc-800">
-            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-zinc-500 hover:text-white text-xl">&times;</button>
-            <h2 class="text-2xl font-bold text-center mb-6 text-white">Welcome Back</h2>
-            <div class="flex mb-6 text-sm font-semibold">
-                <button onclick="switchTab('login')" id="tab-login" class="flex-1 pb-2 tab-active transition-all">Log In</button>
-                <button onclick="switchTab('signup')" id="tab-signup" class="flex-1 pb-2 tab-inactive transition-all">Sign Up</button>
-            </div>
-            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
-                <div id="name-field-container" class="hidden space-y-1">
-                    <label class="text-xs text-zinc-500 ml-1">Username (Visible on profile)</label>
-                    <input type="text" id="auth-name" placeholder="e.g. CampusGhost" class="input-field">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs text-zinc-500 ml-1">Email</label>
-                    <input type="email" id="auth-email" placeholder="student@college.edu" class="input-field" required>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs text-zinc-500 ml-1">Password</label>
-                    <input type="password" id="auth-password" placeholder="••••••••" class="input-field" required minlength="8">
-                </div>
-                <button type="submit" id="auth-submit-btn" class="btn-primary mt-2">Log In</button>
-            </form>
-            <p id="auth-error" class="text-red-400 text-xs mt-4 text-center bg-red-900/20 py-2 rounded hidden"></p>
-        </div>
-    </div>
-
-    <div id="post-modal" class="fixed inset-0 bg-black/90 hidden z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+    <div id="modal" class="fixed inset-0 bg-black/90 hidden z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="glass w-full max-w-md p-6 rounded-2xl relative">
-            <button onclick="closePostModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">&times;</button>
+            <button onclick="toggleModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-xl">&times;</button>
             <h2 class="text-xl font-bold mb-4">Confess</h2>
-            <p class="text-xs text-zinc-500 mb-2">Your username is NOT shown on the post. It's fully anonymous.</p>
-            <textarea id="content-input" rows="4" class="input-field mb-4" placeholder="I have a crush on..."></textarea>
-            <input type="file" id="image-input" class="block w-full text-xs text-gray-500 mb-4 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:bg-zinc-800 file:text-indigo-400 hover:file:bg-zinc-700"/>
-            <button onclick="createPost()" id="post-submit-btn" class="btn-primary">Post It</button>
+            <textarea id="content" rows="4" class="input-field mb-4" placeholder="What's your secret?"></textarea>
+            <input type="file" id="image" class="block w-full text-xs text-gray-500 mb-4 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:bg-zinc-800 file:text-indigo-400 hover:file:bg-zinc-700"/>
+            <button onclick="createPost()" id="submit-btn" class="btn-primary">Post It</button>
         </div>
     </div>
 
     <script>
-        // --- YOUR CONFIGURATION ---
-        const CLIENT_ENDPOINT = 'https://cloud.appwrite.io/v1'; 
-        const PROJECT_ID = '8076463527';     // Your Project ID
-        const DATABASE_ID = 'confessions_db'; // Your Database ID
-        const COLLECTION_ID = 'posts';        // Your Collection ID
-        const BUCKET_ID = 'images';           // Your Bucket ID
+        // ---------------------------------------------------------
+        // 1. FIREBASE SETUP (YOUR KEYS ARE INTEGRATED HERE)
+        // ---------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxNj3xODMPUWKOFFw5kORuWqc6bXTYr00",
+            authDomain: "confession-wall-8ad98.firebaseapp.com",
+            databaseURL: "https://confession-wall-8ad98-default-rtdb.firebaseio.com",
+            projectId: "confession-wall-8ad98",
+            storageBucket: "confession-wall-8ad98.firebasestorage.app",
+            messagingSenderId: "932458535984",
+            appId: "1:932458535984:web:0a655954fe7f5222fda1f5",
+            measurementId: "G-ZWF6K9GNTZ"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- APPWRITE INIT ---
-        const { Client, Account, Databases, Storage, ID, Query } = Appwrite;
-        const client = new Client().setEndpoint(CLIENT_ENDPOINT).setProject(PROJECT_ID);
-        const account = new Account(client);
+        // ---------------------------------------------------------
+        // 2. APPWRITE CONFIG (YOU MUST FILL PROJECT ID)
+        // ---------------------------------------------------------
+        const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
+        
+        // 👇👇👇 PASTE YOUR APPWRITE PROJECT ID HERE 👇👇👇
+        const APPWRITE_PROJECT = 'PASTE_APPWRITE_PROJECT_ID_HERE'; 
+        
+        // Using standard names. If you changed them, update below:
+        const DB_ID = 'confessions_db';
+        const COL_ID = 'posts';
+        const BUCKET_ID = 'images';
+
+        const { Client, Databases, Storage, ID, Query } = Appwrite;
+        const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT);
         const database = new Databases(client);
         const storage = new Storage(client);
 
-        let isSignup = false; 
+        let currentUser = null;
 
-        // --- AUTH ---
-        async function checkSession() {
-            try {
-                const user = await account.get();
-                document.getElementById('login-trigger').classList.add('hidden');
+        // --- AUTH LOGIC (Managed by Firebase) ---
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('login-btn').classList.add('hidden');
                 document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('display-username').innerText = user.name;
-            } catch { console.log("Guest"); }
-        }
-
-        async function handleAuth(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const name = document.getElementById('auth-name').value;
-            const errorMsg = document.getElementById('auth-error');
-            const btn = document.getElementById('auth-submit-btn');
-
-            errorMsg.classList.add('hidden');
-            btn.disabled = true;
-            btn.innerText = "Processing...";
-
-            try {
-                if (isSignup) {
-                    if(!name) throw new Error("Username is required");
-                    await account.create(ID.unique(), email, password, name);
-                    await account.createEmailSession(email, password);
-                } else {
-                    await account.createEmailSession(email, password);
-                }
-                window.location.reload();
-            } catch (error) {
-                errorMsg.innerText = error.message;
-                errorMsg.classList.remove('hidden');
-                btn.disabled = false;
-                btn.innerText = isSignup ? "Sign Up" : "Log In";
+                document.getElementById('user-avatar').src = user.photoURL || 'https://via.placeholder.com/40';
+                document.getElementById('fab').classList.remove('hidden');
+            } else {
+                currentUser = null;
+                document.getElementById('login-btn').classList.remove('hidden');
+                document.getElementById('user-info').classList.add('hidden');
+                document.getElementById('fab').classList.add('hidden');
             }
+        });
+
+        function googleLogin() {
+            auth.signInWithPopup(provider).catch((error) => {
+                alert("Login Failed: " + error.message);
+                console.error(error);
+            });
         }
 
-        async function logout() {
-            await account.deleteSession('current');
+        function logout() {
+            auth.signOut();
             window.location.reload();
         }
 
-        function switchTab(mode) {
-            const loginTab = document.getElementById('tab-login');
-            const signupTab = document.getElementById('tab-signup');
-            const nameField = document.getElementById('name-field-container');
-            const submitBtn = document.getElementById('auth-submit-btn');
-
-            if (mode === 'signup') {
-                isSignup = true;
-                loginTab.className = "flex-1 pb-2 tab-inactive transition-all";
-                signupTab.className = "flex-1 pb-2 tab-active transition-all";
-                nameField.classList.remove('hidden'); 
-                submitBtn.innerText = "Sign Up";
-            } else {
-                isSignup = false;
-                signupTab.className = "flex-1 pb-2 tab-inactive transition-all";
-                loginTab.className = "flex-1 pb-2 tab-active transition-all";
-                nameField.classList.add('hidden'); 
-                submitBtn.innerText = "Log In";
-            }
-        }
-
-        // --- FEED & POSTS ---
+        // --- DATA LOGIC (Managed by Appwrite) ---
         async function loadFeed() {
             try {
-                const response = await database.listDocuments(DATABASE_ID, COLLECTION_ID, [
+                // Fetch posts from Appwrite
+                const response = await database.listDocuments(DB_ID, COL_ID, [
                     Query.orderDesc('$createdAt'),
                     Query.limit(20)
                 ]);
+                
                 const container = document.getElementById('feed-container');
                 container.innerHTML = ''; 
 
                 response.documents.forEach(doc => {
-                    let imageHtml = doc.image_id ? `<img src="${CLIENT_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${doc.image_id}/view?project=${PROJECT_ID}" class="w-full h-64 object-cover rounded-xl mt-3 border border-white/5 bg-zinc-900">` : '';
+                    let imageHtml = doc.image_id ? `<img src="${APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${doc.image_id}/view?project=${APPWRITE_PROJECT}" class="w-full h-64 object-cover rounded-xl mt-3 border border-white/5 bg-zinc-900">` : '';
                     
                     container.innerHTML += `
-                        <div class="glass p-6 rounded-2xl mb-6 shadow-lg border-t border-white/5 hover:border-indigo-500/30 transition duration-300">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="bg-indigo-500/10 text-indigo-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Confession</span>
-                                <span class="text-xs text-gray-500">${new Date(doc.$createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <p class="text-gray-100 text-lg font-light leading-relaxed">${doc.content}</p>
+                        <div class="glass p-6 rounded-2xl mb-6 shadow-lg border-t border-white/5">
+                            <p class="text-gray-100 text-lg leading-relaxed font-light">${doc.content}</p>
                             ${imageHtml}
-                            <div class="mt-4 pt-4 border-t border-white/5 flex items-center justify-end">
-                                <div class="flex items-center gap-2 text-pink-400 text-sm font-mono">
-                                    <span>♥</span>
-                                    <span>${doc.likes || 0}</span>
-                                </div>
+                            <div class="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs text-gray-500 font-mono">
+                                <span>${new Date(doc.$createdAt).toLocaleDateString()}</span>
+                                <span class="text-pink-400">♥ ${doc.likes || 0}</span>
                             </div>
                         </div>`;
                 });
             } catch (error) { 
-                console.error(error); 
-                document.getElementById('feed-container').innerHTML = `<div class="text-red-400 text-center">Error loading feed. Check IDs.</div>`;
+                console.error("Feed Error:", error);
+                document.getElementById('feed-container').innerHTML = `
+                    <div class="text-red-400 text-center p-4 border border-red-900 rounded-lg">
+                        <p class="font-bold">Failed to load posts.</p>
+                        <p class="text-xs mt-2">1. Check Appwrite Project ID.<br>2. Check Database/Storage Permissions are 'Any'.</p>
+                    </div>`;
             }
         }
 
         async function createPost() {
-            const btn = document.getElementById('post-submit-btn');
-            const content = document.getElementById('content-input').value;
-            const file = document.getElementById('image-input').files[0];
+            if (!currentUser) return alert("Please login first!");
 
-            if(!content) return alert("Write a confession first!");
-            btn.innerText = "Posting..."; btn.disabled = true;
+            const content = document.getElementById('content').value;
+            const file = document.getElementById('image').files[0];
+            const btn = document.getElementById('submit-btn');
+
+            if(!content) return alert("Write something!");
+            btn.innerText = "Uploading..."; btn.disabled = true;
 
             try {
-                try { await account.get(); } catch { throw new Error("Please Log In or Sign Up to post!"); }
-
                 let imageId = null;
+                // 1. Upload to Appwrite Storage
                 if (file) {
                     const upload = await storage.createFile(BUCKET_ID, ID.unique(), file);
                     imageId = upload.$id;
                 }
-                await database.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), { content, image_id: imageId });
-                
-                closePostModal();
-                document.getElementById('content-input').value = "";
-                document.getElementById('image-input').value = "";
+
+                // 2. Save to Appwrite Database
+                await database.createDocument(DB_ID, COL_ID, ID.unique(), {
+                    content: content,
+                    image_id: imageId,
+                    likes: 0
+                });
+
+                toggleModal();
+                document.getElementById('content').value = "";
+                document.getElementById('image').value = "";
                 loadFeed();
-            } catch (error) { alert(error.message); }
+
+            } catch (error) {
+                alert("Error: " + error.message);
+                console.error(error);
+            }
             btn.innerText = "Post It"; btn.disabled = false;
         }
 
-        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
-        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
-        function openPostModal() { document.getElementById('post-modal').classList.remove('hidden'); }
-        function closePostModal() { document.getElementById('post-modal').classList.add('hidden'); }
+        function toggleModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.toggle('hidden');
+        }
 
-        checkSession();
+        // Init
         loadFeed();
     </script>
 </body>
