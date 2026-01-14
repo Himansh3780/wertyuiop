@@ -3,201 +3,345 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper | Campus Confessions</title>
+    <title>Campus X | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
-
     <style>
-        body { font-family: 'Space Grotesk', sans-serif; background-color: #09090b; color: #e4e4e7; }
-        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .input-field { background: #18181b; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 10px; width: 100%; outline: none; }
-        .input-field:focus { border-color: #818cf8; }
-        .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-weight: bold; padding: 12px; border-radius: 10px; width: 100%; transition: 0.3s; }
-        .btn-primary:hover { opacity: 0.9; }
-        .btn-google { background: white; color: black; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border-radius: 50px; font-size: 14px; transition: 0.3s; cursor: pointer; }
-        .btn-google:hover { background: #f4f4f5; }
+        body { background-color: #000000; color: #e7e9ea; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .twitter-border { border-color: #2f3336; }
+        .twitter-btn { background-color: #1d9bf0; color: white; font-weight: bold; border-radius: 9999px; transition: 0.2s; }
+        .twitter-btn:hover { background-color: #1a8cd8; }
+        .tweet-input { background: transparent; border: none; outline: none; color: white; font-size: 1.25rem; resize: none; }
+        .tweet-card:hover { background-color: #080808; cursor: pointer; }
+        .modal-bg { background-color: rgba(91, 112, 131, 0.4); }
     </style>
 </head>
-<body class="min-h-screen pb-20 flex flex-col items-center">
+<body class="min-h-screen flex justify-center">
 
-    <nav class="glass fixed w-full z-50 top-0 px-6 py-4 flex justify-between items-center shadow-2xl">
-        <h1 class="text-2xl font-bold tracking-tighter text-indigo-400">WHISPER.</h1>
-        <div id="auth-section">
-            <button onclick="googleLogin()" id="login-btn" class="btn-google">
-                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" width="18">
-                Sign in
-            </button>
-            <div id="user-info" class="hidden flex items-center gap-4">
-                <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-indigo-500">
-                <button onclick="logout()" class="text-xs text-red-400 hover:text-red-300">Logout</button>
+    <header class="hidden sm:flex flex-col items-end pr-6 w-20 xl:w-64 pt-4">
+        <div class="fixed top-4">
+            <h1 class="text-3xl font-bold mb-6 px-4 text-white"><i class="fa-brands fa-twitter"></i></h1>
+        </div>
+    </header>
+
+    <main class="w-full max-w-[600px] border-x twitter-border min-h-screen flex flex-col relative">
+        
+        <div class="sticky top-0 bg-black/80 backdrop-blur-md z-40 px-4 py-3 border-b twitter-border flex justify-between items-center">
+            <h2 class="text-xl font-bold cursor-pointer" onclick="window.scrollTo(0,0)">Home</h2>
+            
+            <div id="auth-ui-container">
+                <button onclick="openAuthModal()" id="login-trigger" class="text-sm font-bold text-[#1d9bf0] border border-[#1d9bf0] px-4 py-1 rounded-full hover:bg-[#1d9bf0]/10">
+                    Log In
+                </button>
+                <div id="user-display" class="hidden flex items-center gap-3">
+                    <span id="current-username" class="text-sm font-bold text-gray-400">@user</span>
+                    <button onclick="logout()" class="text-red-500 text-xs border border-red-500 px-2 py-1 rounded-full hover:bg-red-900/20">Log out</button>
+                </div>
             </div>
         </div>
-    </nav>
 
-    <main class="w-full max-w-lg mt-28 px-4 space-y-6" id="feed-container">
-        <div class="text-center py-10 text-gray-600 animate-pulse text-xs tracking-widest">LOADING SECRETS...</div>
+        <div id="tweet-box-container" class="px-4 py-3 border-b twitter-border flex gap-4 opacity-50 pointer-events-none relative">
+            <div class="absolute inset-0 z-10 flex items-center justify-center" id="lock-overlay">
+                </div>
+            
+            <div class="w-10 h-10 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center">
+                <i class="fa-solid fa-user text-lg text-white"></i>
+            </div>
+            <div class="flex-1">
+                <textarea id="tweet-text" rows="2" placeholder="What is happening?!" class="tweet-input w-full mt-2" oninput="autoResize(this)"></textarea>
+                <div id="image-preview" class="hidden mt-2 relative">
+                    <img id="preview-img" class="rounded-2xl border twitter-border max-h-60 w-full object-cover">
+                    <button onclick="clearImage()" class="absolute top-2 left-2 bg-black/70 rounded-full p-2 text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex justify-between items-center mt-3 pt-3 border-t twitter-border">
+                    <div class="text-[#1d9bf0] flex gap-4 text-lg">
+                        <label class="cursor-pointer hover:bg-[#1d9bf0]/10 p-2 rounded-full">
+                            <i class="fa-regular fa-image"></i>
+                            <input type="file" id="image-upload" class="hidden" accept="image/*" onchange="previewImage(event)">
+                        </label>
+                    </div>
+                    <button onclick="postTweet()" id="post-btn" class="twitter-btn px-5 py-2 text-sm disabled:opacity-50">Post</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="guest-prompt" class="p-4 bg-[#1d9bf0]/10 border-b twitter-border text-center">
+            <p class="text-[#1d9bf0] font-bold cursor-pointer" onclick="openAuthModal()">
+                <i class="fa-solid fa-lock mr-2"></i> Log in to post your confessions
+            </p>
+        </div>
+
+        <div id="new-tweets-alert" class="hidden text-center py-3 border-b twitter-border text-[#1d9bf0] text-sm cursor-pointer hover:bg-white/5" onclick="loadFeed()">
+            Show new posts
+        </div>
+
+        <div id="feed" class="flex flex-col pb-20">
+            <div class="text-center py-10 text-gray-500 animate-pulse">Loading timeline...</div>
+        </div>
     </main>
 
-    <button id="fab" onclick="toggleModal()" class="hidden fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-full shadow-2xl transition hover:scale-105 z-40">
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-    </button>
+    <div id="auth-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center modal-bg backdrop-blur-sm p-4">
+        <div class="bg-black w-full max-w-sm p-8 rounded-2xl relative border twitter-border shadow-2xl">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-white" id="modal-title">Sign in</h2>
 
-    <div id="modal" class="fixed inset-0 bg-black/90 hidden z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="glass w-full max-w-md p-6 rounded-2xl relative">
-            <button onclick="toggleModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-xl">&times;</button>
-            <h2 class="text-xl font-bold mb-4">Confess</h2>
-            <textarea id="content" rows="4" class="input-field mb-4" placeholder="What's your secret?"></textarea>
-            <input type="file" id="image" class="block w-full text-xs text-gray-500 mb-4 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:bg-zinc-800 file:text-indigo-400 hover:file:bg-zinc-700"/>
-            <button onclick="createPost()" id="submit-btn" class="btn-primary">Post It</button>
+            <div class="flex mb-6 border-b twitter-border">
+                <button onclick="switchMode('login')" id="tab-login" class="flex-1 pb-3 font-bold border-b-2 border-[#1d9bf0] text-white">Log In</button>
+                <button onclick="switchMode('signup')" id="tab-signup" class="flex-1 pb-3 font-bold text-gray-500 hover:text-white">Sign Up</button>
+            </div>
+
+            <form onsubmit="handleAuth(event)" class="space-y-4">
+                <div id="username-field" class="hidden">
+                    <input type="text" id="auth-username" placeholder="Username (e.g. @coolguy)" class="w-full bg-black border twitter-border p-3 rounded text-white focus:border-[#1d9bf0] outline-none">
+                </div>
+                <input type="email" id="auth-email" placeholder="Email" class="w-full bg-black border twitter-border p-3 rounded text-white focus:border-[#1d9bf0] outline-none" required>
+                <input type="password" id="auth-password" placeholder="Password" class="w-full bg-black border twitter-border p-3 rounded text-white focus:border-[#1d9bf0] outline-none" required>
+                <button type="submit" id="auth-btn" class="w-full bg-white text-black font-bold py-3 rounded-full hover:bg-gray-200 transition mt-2">Log In</button>
+            </form>
+            <p id="auth-error" class="text-red-500 text-sm mt-4 text-center hidden"></p>
         </div>
     </div>
 
     <script>
-        // ---------------------------------------------------------
-        // 1. FIREBASE SETUP
-        // ---------------------------------------------------------
-        const firebaseConfig = {
-            apiKey: "AIzaSyCxNj3xODMPUWKOFFw5kORuWqc6bXTYr00",
-            authDomain: "confession-wall-8ad98.firebaseapp.com",
-            databaseURL: "https://confession-wall-8ad98-default-rtdb.firebaseio.com",
-            projectId: "confession-wall-8ad98",
-            storageBucket: "confession-wall-8ad98.firebasestorage.app",
-            messagingSenderId: "932458535984",
-            appId: "1:932458535984:web:0a655954fe7f5222fda1f5",
-            measurementId: "G-ZWF6K9GNTZ"
-        };
-        
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
+        // ==========================================
+        // ✅ YOUR CREDENTIALS INSERTED
+        // ==========================================
+        const SUPABASE_URL = 'https://pkpjjsnjmgmxeiunqkll.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrcGpqc25qbWdteGVpdW5xa2xsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MDEyODcsImV4cCI6MjA4Mzk3NzI4N30.yUzguGlrCnDW4rF99lFPjYOfkhwf7lbMkOkC_sEMTzA';
+        // ==========================================
 
-        // ---------------------------------------------------------
-        // 2. APPWRITE CONFIG (YOUR ID IS INSERTED)
-        // ---------------------------------------------------------
-        const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
-        
-        // YOUR ID 👇
-        const APPWRITE_PROJECT = '8076463527'; 
-        
-        const DB_ID = 'confessions_db';
-        const COL_ID = 'posts';
-        const BUCKET_ID = 'images';
-
-        const { Client, Databases, Storage, ID, Query } = Appwrite;
-        const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT);
-        const database = new Databases(client);
-        const storage = new Storage(client);
-
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
+        let isSignup = false;
 
-        // --- AUTH LOGIC (Firebase) ---
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('login-btn').classList.add('hidden');
-                document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('user-avatar').src = user.photoURL || 'https://via.placeholder.com/40';
-                document.getElementById('fab').classList.remove('hidden');
+        // --- AUTH & SESSION ---
+        async function checkSession() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                updateUI(true);
             } else {
-                currentUser = null;
-                document.getElementById('login-btn').classList.remove('hidden');
-                document.getElementById('user-info').classList.add('hidden');
-                document.getElementById('fab').classList.add('hidden');
+                updateUI(false);
             }
-        });
-
-        function googleLogin() {
-            auth.signInWithPopup(provider).catch((error) => {
-                alert("Login Failed: " + error.message);
-            });
         }
 
-        function logout() {
-            auth.signOut();
+        function updateUI(loggedIn) {
+            const container = document.getElementById('tweet-box-container');
+            const guestPrompt = document.getElementById('guest-prompt');
+            const loginBtn = document.getElementById('login-trigger');
+            const userDisplay = document.getElementById('user-display');
+
+            if (loggedIn) {
+                // Unlock tweet box
+                container.classList.remove('opacity-50', 'pointer-events-none');
+                guestPrompt.classList.add('hidden');
+                loginBtn.classList.add('hidden');
+                userDisplay.classList.remove('hidden');
+                
+                // Show Username
+                const username = currentUser.user_metadata.username || "User";
+                document.getElementById('current-username').innerText = "@" + username;
+            } else {
+                // Lock tweet box
+                container.classList.add('opacity-50', 'pointer-events-none');
+                guestPrompt.classList.remove('hidden');
+                loginBtn.classList.remove('hidden');
+                userDisplay.classList.add('hidden');
+            }
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const username = document.getElementById('auth-username').value;
+            const btn = document.getElementById('auth-btn');
+            const errorText = document.getElementById('auth-error');
+
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            errorText.classList.add('hidden');
+
+            try {
+                if (isSignup) {
+                    if (!username) throw new Error("Username is required");
+                    const { error } = await sb.auth.signUp({
+                        email: email,
+                        password: password,
+                        options: { data: { username: username } }
+                    });
+                    if (error) throw error;
+                    // Auto Login after signup usually requires email confirm unless disabled
+                    alert("Success! If you disabled email confirm, log in now.");
+                    switchMode('login'); // Switch to login tab
+                } else {
+                    const { error } = await sb.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+                    if (error) throw error;
+                    window.location.reload();
+                }
+            } catch (error) {
+                errorText.innerText = error.message;
+                errorText.classList.remove('hidden');
+            }
+            btn.disabled = false;
+            btn.innerText = isSignup ? "Sign Up" : "Log In";
+        }
+
+        async function logout() {
+            await sb.auth.signOut();
             window.location.reload();
         }
 
-        // --- DATA LOGIC (Appwrite) ---
-        async function loadFeed() {
-            try {
-                const response = await database.listDocuments(DB_ID, COL_ID, [
-                    Query.orderDesc('$createdAt'),
-                    Query.limit(20)
-                ]);
-                
-                const container = document.getElementById('feed-container');
-                container.innerHTML = ''; 
+        // --- POSTING ---
+        async function postTweet() {
+            if (!currentUser) return;
+            const text = document.getElementById('tweet-text').value;
+            const fileInput = document.getElementById('image-upload');
+            const btn = document.getElementById('post-btn');
 
-                response.documents.forEach(doc => {
-                    let imageHtml = doc.image_id ? `<img src="${APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${doc.image_id}/view?project=${APPWRITE_PROJECT}" class="w-full h-64 object-cover rounded-xl mt-3 border border-white/5 bg-zinc-900">` : '';
-                    
-                    container.innerHTML += `
-                        <div class="glass p-6 rounded-2xl mb-6 shadow-lg border-t border-white/5">
-                            <p class="text-gray-100 text-lg leading-relaxed font-light">${doc.content}</p>
-                            ${imageHtml}
-                            <div class="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs text-gray-500 font-mono">
-                                <span>${new Date(doc.$createdAt).toLocaleDateString()}</span>
-                                <span class="text-pink-400">♥ ${doc.likes || 0}</span>
-                            </div>
-                        </div>`;
-                });
-            } catch (error) { 
-                console.error("Feed Error:", error);
-                document.getElementById('feed-container').innerHTML = `
-                    <div class="text-red-400 text-center p-4 border border-red-900 rounded-lg">
-                        <p class="font-bold">Failed to load posts.</p>
-                        <p class="text-xs mt-2">1. Check if Appwrite DB Permissions are set to 'Any'.<br>2. Check if 'confessions_db' exists.</p>
-                    </div>`;
+            if (!text.trim() && !fileInput.files.length) return;
+            btn.innerText = "Posting..."; btn.disabled = true;
+
+            let imageUrl = null;
+            // Image Upload
+            if (fileInput.files.length > 0) {
+                try {
+                    const file = fileInput.files[0];
+                    const fileName = `img_${Date.now()}`;
+                    const { error } = await sb.storage.from('images').upload(fileName, file);
+                    if (!error) {
+                        const { data } = sb.storage.from('images').getPublicUrl(fileName);
+                        imageUrl = data.publicUrl;
+                    }
+                } catch (e) { console.error(e); }
             }
-        }
 
-        async function createPost() {
-            if (!currentUser) return alert("Please login first!");
+            // DB Insert
+            const username = currentUser.user_metadata.username || "Anonymous";
+            const { error } = await sb.from('posts').insert({
+                content: text,
+                image_url: imageUrl,
+                username: username
+            });
 
-            const content = document.getElementById('content').value;
-            const file = document.getElementById('image').files[0];
-            const btn = document.getElementById('submit-btn');
-
-            if(!content) return alert("Write something!");
-            btn.innerText = "Uploading..."; btn.disabled = true;
-
-            try {
-                let imageId = null;
-                if (file) {
-                    const upload = await storage.createFile(BUCKET_ID, ID.unique(), file);
-                    imageId = upload.$id;
-                }
-
-                await database.createDocument(DB_ID, COL_ID, ID.unique(), {
-                    content: content,
-                    image_id: imageId,
-                    likes: 0
-                });
-
-                toggleModal();
-                document.getElementById('content').value = "";
-                document.getElementById('image').value = "";
-                loadFeed();
-
-            } catch (error) {
+            if (error) {
                 alert("Error: " + error.message);
-                console.error(error);
+            } else {
+                document.getElementById('tweet-text').value = '';
+                clearImage();
+                loadFeed();
             }
-            btn.innerText = "Post It"; btn.disabled = false;
+            btn.innerText = "Post"; btn.disabled = false;
         }
 
-        function toggleModal() {
-            const modal = document.getElementById('modal');
-            modal.classList.toggle('hidden');
+        // --- FEED ---
+        async function loadFeed() {
+            const feed = document.getElementById('feed');
+            const { data, error } = await sb
+                .from('posts')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                feed.innerHTML = `<div class="text-red-500 p-4 text-center">Error: ${error.message}</div>`;
+                return;
+            }
+
+            feed.innerHTML = '';
+            document.getElementById('new-tweets-alert').classList.add('hidden');
+
+            data.forEach(post => {
+                const date = new Date(post.created_at);
+                const timeAgo = getTimeAgo(date);
+                let imageHtml = post.image_url ? `<img src="${post.image_url}" class="mt-3 rounded-2xl border twitter-border w-full max-h-[500px] object-cover bg-slate-900" loading="lazy">` : '';
+                
+                const displayUser = post.username || "Anonymous";
+                const displayHandle = "@" + displayUser.replace(/\s+/g, '').toLowerCase();
+
+                feed.innerHTML += `
+                <article class="px-4 py-3 border-b twitter-border flex gap-3 tweet-card transition">
+                    <div class="w-10 h-10 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center font-bold text-white">
+                        ${displayUser[0].toUpperCase()}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-1 truncate">
+                                <span class="font-bold text-[#e7e9ea]">${escapeHtml(displayUser)}</span>
+                                <span class="text-[#71767b]">${escapeHtml(displayHandle)}</span>
+                                <span class="text-[#71767b] text-sm">· ${timeAgo}</span>
+                            </div>
+                        </div>
+                        <p class="text-[#e7e9ea] text-[15px] whitespace-pre-wrap mt-1 leading-normal">${escapeHtml(post.content)}</p>
+                        ${imageHtml}
+                        <div class="flex mt-3 text-[#71767b] gap-6">
+                            <button onclick="likePost(${post.id})" class="group flex items-center gap-2 hover:text-[#f91880] transition">
+                                <i class="fa-regular fa-heart"></i> <span class="text-sm">${post.likes || 0}</span>
+                            </button>
+                        </div>
+                    </div>
+                </article>`;
+            });
         }
 
-        // Init
+        async function likePost(id) {
+            const { data } = await sb.from('posts').select('likes').eq('id', id).single();
+            const newLikes = (data.likes || 0) + 1;
+            await sb.from('posts').update({ likes: newLikes }).eq('id', id);
+            loadFeed();
+        }
+
+        // --- UTILS ---
+        function switchMode(mode) {
+            isSignup = (mode === 'signup');
+            document.getElementById('auth-error').classList.add('hidden');
+            if(isSignup) {
+                document.getElementById('tab-signup').className = "flex-1 pb-3 font-bold border-b-2 border-[#1d9bf0] text-white";
+                document.getElementById('tab-login').className = "flex-1 pb-3 font-bold text-gray-500 hover:text-white";
+                document.getElementById('username-field').classList.remove('hidden');
+                document.getElementById('auth-btn').innerText = "Create Account";
+            } else {
+                document.getElementById('tab-login').className = "flex-1 pb-3 font-bold border-b-2 border-[#1d9bf0] text-white";
+                document.getElementById('tab-signup').className = "flex-1 pb-3 font-bold text-gray-500 hover:text-white";
+                document.getElementById('username-field').classList.add('hidden');
+                document.getElementById('auth-btn').innerText = "Log In";
+            }
+        }
+        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
+        function autoResize(textarea) { textarea.style.height = 'auto'; textarea.style.height = textarea.scrollHeight + 'px'; }
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) { document.getElementById('preview-img').src = e.target.result; document.getElementById('image-preview').classList.remove('hidden'); };
+                reader.readAsDataURL(file);
+            }
+        }
+        function clearImage() { document.getElementById('image-upload').value = ""; document.getElementById('image-preview').classList.add('hidden'); }
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return "just now";
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + "m";
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + "h";
+            return Math.floor(hours / 24) + "d";
+        }
+        function escapeHtml(text) { if (!text) return ""; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+        // Start
+        checkSession();
         loadFeed();
+        sb.channel('public:posts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => {
+            document.getElementById('new-tweets-alert').classList.remove('hidden');
+        }).subscribe();
     </script>
 </body>
 </html>
